@@ -1,0 +1,228 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Scanner;
+
+public class TextAdventure {
+
+    private static final Random RANDOM = new Random();
+    private static final Scanner SCANNER = new Scanner(System.in);
+    private static final Map<String, Location> locations = new HashMap<>();
+    private static Location currentLocation;
+    private static final List<String> inventory = new ArrayList<>();
+    private static boolean puzzleSolved = false;
+
+    public static void main(String[] args) {
+        initializeGame();
+        System.out.println("Welcome to the Text Adventure Game!");
+        playGame();
+        SCANNER.close();
+    }
+
+    private static void initializeGame() {
+        // Create Locations
+        Location forest = new Location("Forest",
+                "You are in a dense forest. Sunlight filters through the leaves above. " +
+                        "There is a path to the north, south, and east.");
+        Location clearing = new Location("Clearing",
+                "You are in a small clearing. A small stream flows to the west. " +
+                        "There is a path to the north and south.");
+        Location caveEntrance = new Location("Cave Entrance",
+                "You are at the entrance of a dark cave. It looks ominous. " +
+                        "There is a path to the west.");
+        Location stream = new Location("Stream", "You stand at the edge of a clear stream. It flows to the East");
+        Location caveInterior = new Location("Cave Interior",
+                "You are inside the cave. It's damp and dark. A strange key lies on the ground."
+        );
+        // Add connections
+        forest.addExit("north", clearing);
+        forest.addExit("south", stream);
+        forest.addExit("east", caveEntrance);
+        clearing.addExit("north", forest);
+        clearing.addExit("south", stream);
+        stream.addExit("east", forest);
+        stream.addExit("west", clearing);
+        caveEntrance.addExit("west", forest);
+        caveInterior.addExit("west", caveEntrance);
+
+         // Add items to locations
+         caveInterior.addItem("key");
+         forest.addItem("rock");
+
+        // Set Starting Location
+        locations.put("forest", forest);
+        locations.put("clearing", clearing);
+        locations.put("caveEntrance", caveEntrance);
+        locations.put("stream", stream);
+        locations.put("caveInterior", caveInterior);
+        currentLocation = forest;
+    }
+
+    private static void playGame() {
+        while (true) {
+            System.out.println("\n" + currentLocation.getDescription());
+            System.out.print("What do you want to do? (go/look/take/use/inventory/quit) > ");
+            String command = SCANNER.nextLine().trim().toLowerCase();
+            if(command.isEmpty()) {
+                continue;
+            }
+            String[] parts = command.split(" ", 2);
+            String action = parts[0];
+            String argument = parts.length > 1 ? parts[1] : "";
+
+
+            switch (action) {
+                case "go":
+                    handleGo(argument);
+                    break;
+                case "look":
+                    handleLook();
+                    break;
+                case "take":
+                    handleTake(argument);
+                    break;
+                case "use":
+                    handleUse(argument);
+                    break;
+                case "inventory":
+                    handleInventory();
+                    break;
+                case "quit":
+                    System.out.println("Thanks for playing!");
+                    return;
+                default:
+                    System.out.println("Invalid command.");
+            }
+
+            // Random Encounter (10% chance per turn)
+             if(RANDOM.nextInt(10) == 0) {
+               handleRandomEncounter();
+             }
+        }
+    }
+
+     private static void handleRandomEncounter() {
+          int encounterType = RANDOM.nextInt(3);
+
+          switch(encounterType) {
+            case 0:
+              System.out.println("You hear rustling in the bushes. A squirrel scurries by!");
+              break;
+            case 1:
+              System.out.println("A gentle breeze rustles the leaves. You feel a moment of peace.");
+              break;
+            case 2:
+              System.out.println("A strange crow lands on a branch and stares at you.");
+              break;
+          }
+    }
+
+    private static void handleGo(String direction) {
+        if (currentLocation.hasExit(direction)) {
+            currentLocation = currentLocation.getExit(direction);
+        } else {
+            System.out.println("You can't go that way.");
+        }
+    }
+
+    private static void handleLook() {
+        System.out.println(currentLocation.getDescription());
+        if (!currentLocation.getItems().isEmpty()) {
+            System.out.println("You see the following items here:");
+            for (String item : currentLocation.getItems()) {
+                System.out.println("- " + item);
+            }
+        } else {
+              System.out.println("You don't see anything else of note here");
+        }
+    }
+
+    private static void handleTake(String item) {
+         if (currentLocation.hasItem(item)){
+            currentLocation.removeItem(item);
+            inventory.add(item);
+            System.out.println("You take the " + item + ".");
+        } else {
+            System.out.println("You don't see that item here.");
+        }
+    }
+
+     private static void handleUse(String item) {
+          if(item.equals("key") && inventory.contains("key")) {
+            if (currentLocation.getName().equals("Cave Entrance")) {
+                  puzzleSolved = true;
+                  System.out.println("You use the key and a secret door opens in the cave!");
+                  currentLocation.addExit("south", locations.get("caveInterior")); // Add the passage if not already made
+                 } else {
+              System.out.println("The key doesn't work here");
+              }
+            } else if (item.equals("rock") && inventory.contains("rock")){
+                System.out.println("You try to use the rock but nothing happens");
+            } else {
+            System.out.println("You don't have the " + item + " or it cannot be used right now.");
+        }
+     }
+
+      private static void handleInventory() {
+          if(inventory.isEmpty()){
+            System.out.println("You don't have anything in your inventory");
+          } else {
+          System.out.println("You have the following items:");
+          for (String item : inventory) {
+              System.out.println("- " + item);
+          }
+         }
+      }
+
+
+    static class Location {
+        private String name;
+        private String description;
+        private final Map<String, Location> exits = new HashMap<>();
+        private final List<String> items = new ArrayList<>();
+
+        public Location(String name, String description) {
+            this.name = name;
+            this.description = description;
+        }
+
+        public String getName(){
+            return name;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+         public void setDescription(String description) { this.description = description;}
+
+        public void addExit(String direction, Location location) {
+            exits.put(direction, location);
+        }
+
+        public boolean hasExit(String direction) {
+            return exits.containsKey(direction);
+        }
+
+        public Location getExit(String direction) {
+            return exits.get(direction);
+        }
+
+        public void addItem(String item) {
+            items.add(item);
+        }
+
+        public boolean hasItem(String item) {
+            return items.contains(item);
+        }
+
+        public void removeItem(String item) {
+            items.remove(item);
+        }
+
+        public List<String> getItems() {
+            return items;
+        }
+    }
+}
